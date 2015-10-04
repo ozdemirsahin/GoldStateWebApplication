@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" 
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+	xmlns:h="http://java.sun.com/jsf/html"
+	xmlns:f="http://java.sun.com/jsf/core"
+	xmlns:ui="http://java.sun.com/jsf/facelets"
+	xmlns:p="http://primefaces.org/ui">
+
+<h:head>
+	<link type="text/css" rel="stylesheet"
+		href="/project/faces/javax.faces.resource/theme.css?ln=primefaces-start" />
+</h:head>
+<h:body>
+	<script src="javascript/calenderTr.js" type="text/javascript" />
+	<h:form id="form">
+		<p:panel id="panel" header="AP TEST EKRANI (UAT)">
+			<h4 align="left" style="color: #2191c0">ALTIN VAZİYETİ</h4>
+			<p:messages id="msgs" autoUpdate="true" />
+			<h:panelGrid id="grid" columns="8" cellpadding="10"
+				style="margin-bottom:4cm ;margin-left: auto;margin-right: auto">
+
+				<p:outputLabel for="queryType" value="Şube/Banka:" />
+				<p:selectOneMenu id="queryType" value="#{apcontroller.queryType}"
+					style="font-size:15px!important;width:100px; margin-right:1cm;">
+					<f:selectItem itemLabel="Seçiniz" itemValue="" />
+					<f:selectItem itemLabel="B" itemValue="B" />
+					<f:selectItem itemLabel="S" itemValue="S" />
+					<f:ajax render="input" />
+				</p:selectOneMenu>
+
+				<h:panelGroup id="input">
+					<p:outputLabel for="branchCode" value="Şube Kodu:"
+						rendered="#{apcontroller.queryType == 'S'}" />
+					<p:inputText id="branchCode" value="#{apcontroller.branchCode}"
+						rendered="#{apcontroller.queryType == 'S'}" required="true"
+						requiredMessage="Şube Kodu Giriniz.!"
+						style="font-size:15px!important;width:100px;margin-right:1cm;">
+						<f:validateLongRange minimum="100" maximum="9999" />
+					</p:inputText>
+				</h:panelGroup>
+
+				<p:outputLabel for="date" value="Tarih :" />
+				<p:calendar id="date" value="#{apcontroller.date}"
+					maxdate="#currentDate" effect="fold" locale="tr"
+					style="font-size:15px!important;width:100px;margin-right:1cm;" pattern="dd-MM-yyyy" mask="true" />
+
+				<p:outputLabel for="time" value="Zaman :" />
+				<p:calendar id="time" value="#{apcontroller.time}" pattern="HH:mm" mask="true"
+					timeOnly="true" effect="fold" locale="tr"
+					style="font-size:15px!important;width:100px; margin-right:3cm;" />
+
+				<p:commandButton value="Listele" update="panel" actionListener="#{apcontroller.retrieveGoldState}"
+					style="font-size:15px!important;margin-left:10px;width:100px" />
+
+			</h:panelGrid>
+
+			<p:dataTable id="dataTable" var="gold" value="#{apcontroller.goldStates}"
+				style="font-size:15px!important" paginator="true" rows="5" 
+				paginatorTemplate="{CurrentPageReport}  {FirstPageLink} {PreviousPageLink} {PageLinks} {NextPageLink} {LastPageLink} {RowsPerPageDropdown}"
+				rowsPerPageTemplate="5,10,15" paginatorPosition="bottom">
+
+				<p:column headerText="">
+					<h:outputText value="#{gold.type}" />
+				</p:column>
+				<p:column headerText="Borç Tutar">
+				<h:outputText value="#{gold.debitAmount}" />
+				</p:column>
+				<p:column headerText="Alacak Tutar">
+				<h:outputText value="#{gold.creditAmount}" />
+				</p:column>
+				<p:column headerText="Bakiye">
+				<h:outputText value="#{gold.balance}" />
+				</p:column>
+
+			</p:dataTable>
+
+			<h:panelGrid id="grid2" columns="3" cellpadding="10"
+				style="margin-top:2cm">
+				<h5 align="left">Not:Şube verileri için S,Banka verileri için B
+					giriniz. * : Zorunlu Alan</h5>
+				<p:commandButton
+					style="font-size:15px!important;margin-left:1095px; width:100px"
+					value="Temizle" update="panel" process="@this" actionListener="#{apcontroller.reset}">
+				</p:commandButton>
+				<p:commandButton
+					style="font-size:15px!important;margin-left:20px; width:100px"
+					value="Kapat" />
+					
+			</h:panelGrid>
+		</p:panel>
+	</h:form>
+</h:body>
+</html>
