@@ -1,11 +1,15 @@
 package com.isbank.account.controller;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.ListIterator;
 
 import javax.annotation.PostConstruct;
 import javax.faces.bean.ManagedBean;
@@ -29,7 +33,6 @@ public class APController {
 	private List<String> types;
 	private String selectedType;
 
-
 	@ManagedProperty("#{goldService}")
 	private GoldService service;
 
@@ -43,15 +46,9 @@ public class APController {
 	}
 
 	public List<GoldState> retrieveGoldState() throws SQLException {
-		
-		Timestamp ts=createTimestamp(date, time);
-		if (queryType.equals("B")) {
-		this.goldStates=service.retrieveGoldStatesOfBank(types,ts);
-		} else {
-		this.goldStates=service.retrieveGoldStatesOfBranch(types, branchCode,ts);
-		}
-		System.out.println("return size :" +goldStates.size());
-	
+		Timestamp timestamp = createTimestamp(date, time);
+		this.goldStates=service.retrieveGoldState(queryType, types, branchCode, timestamp);
+
 		return this.goldStates;
 	}
 
@@ -118,13 +115,19 @@ public class APController {
 	public void setService(GoldService service) {
 		this.service = service;
 	}
-	
-	public void reset() {
-        RequestContext.getCurrentInstance().reset("form:panel");
-        RequestContext.getCurrentInstance().reset("form:dataTable");
-    }
 
-	public Timestamp createTimestamp(Date date,Date time){
+	public void reset() {
+		RequestContext.getCurrentInstance().reset("form:panel");
+		RequestContext.getCurrentInstance().reset("form:dataTable");
+	}
+
+	public Timestamp createTimestamp(Date date, Date time) {
+		if (date == null)
+			date = new Date();
+
+		if (time == null)
+			time = new Date();
+
 		Calendar calA = Calendar.getInstance();
 		calA.setTime(date);
 
@@ -135,11 +138,10 @@ public class APController {
 		calA.set(Calendar.MINUTE, calB.get(Calendar.MINUTE));
 		calA.set(Calendar.SECOND, calB.get(Calendar.SECOND));
 		calA.set(Calendar.MILLISECOND, calB.get(Calendar.MILLISECOND));
-		
-		System.out.println("Merge Date :"+calA.getTime());
-		
+
+		System.out.println("Merged Date :" + calA.getTime());
+
 		return new Timestamp(calA.getTime().getTime());
-		
 	}
 
 }
