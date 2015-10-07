@@ -22,11 +22,11 @@ public class APDao {
 	private final String DB_USER = "is96689";
 	private final String DB_PASSWORD = "K1K1K1K1";
 
-	public List<GoldState> retrieveGoldStateOfBranch(Integer branchCode, Timestamp timestamp,
-			List<String> accountingType) throws SQLException {
+	public List<GoldState> retrieveGoldStateOfBranch(Integer branchCode, Timestamp timestamp,List<String> accountingType) throws SQLException {
 
 		Connection dbConnection = null;
-		PreparedStatement preparedStatement = null;
+		List<PreparedStatement> psList=new ArrayList<PreparedStatement>();
+		PreparedStatement ps = null;
 
 		List<GoldState> goldStateList = new ArrayList<GoldState>();
 		BigDecimal totalDebitAmountTry = BigDecimal.ZERO;
@@ -35,6 +35,7 @@ public class APDao {
 		BigDecimal totalCreditAmount = BigDecimal.ZERO;
 
 		dbConnection = getDBConnection();
+		
 		if (dbConnection == null)
 			throw new SQLException("Can't get database connection");
 
@@ -46,19 +47,12 @@ public class APDao {
 						+ "FROM SCACH.GOLD_OPERATION " + "WHERE GOLD_BRANCH_CODE=" + branchCode + " AND GOLD_TSTP <="
 						+ "'" + timestamp + "'" + "AND GOLD_ACCOUNTING_TYPE=" + "'" + accountingType.get(i) + "'";
 
-				preparedStatement = dbConnection.prepareStatement(selectSQL);
-				ResultSet rs = preparedStatement.executeQuery();
-
-				String tryAccType = "";
-
-				if (accountingType.get(i).equals("28500"))
-					tryAccType = "284000";
-				else if (accountingType.get(i).equals("28501"))
-					tryAccType = "284010";
-				else if (accountingType.get(i).equals("28502"))
-					tryAccType = "284020";
-				else if (accountingType.get(i).equals("28503"))
-					tryAccType = "284030";
+				ps = dbConnection.prepareStatement(selectSQL);
+				psList.add(ps);
+				
+				ResultSet rs = ps.executeQuery();
+                  
+				String tryAccType = setTryAccountType(accountingType.get(i));
 
 				while (rs.next()) {
 
@@ -79,94 +73,56 @@ public class APDao {
 						totalDebitAmountTry = totalDebitAmountTry.add(goldStateTry.getDebitAmount());
 						totalCreditAmountTry = totalCreditAmountTry.add(goldStateTry.getCreditAmount());
 					}
-
 				}
 			}
-
-			GoldState goldStateGramAmount = getGoldState(totalDebitAmount, totalCreditAmount, "XAU GİŞE GRAM  TUTAR");
-			goldStateList.add(goldStateGramAmount);
-
-			GoldState goldStateGramAmountTry = getGoldState(totalDebitAmountTry, totalCreditAmountTry,
-					"TRY TOPLAM MALİYET");
-			goldStateList.add(goldStateGramAmountTry);
-
-			GoldState goldStateCostUnit = getGoldState(
-					totalDebitAmountTry.divide(totalDebitAmount, 5, RoundingMode.HALF_EVEN),
-					totalCreditAmountTry.divide(totalCreditAmount, 5, RoundingMode.HALF_EVEN), "TRY BİRİM MALİYET");
-			goldStateList.add(goldStateCostUnit);
-
 			GoldState goldStateUsd = getGoldState(BigDecimal.ZERO, BigDecimal.ZERO, "USD 284030");
 			goldStateList.add(goldStateUsd);
 
 			GoldState goldStateXau = getGoldState(BigDecimal.ZERO, BigDecimal.ZERO, "XAU 019000");
 			goldStateList.add(goldStateXau);
 
+			GoldState goldStateGramAmount = getGoldState(totalDebitAmount, totalCreditAmount, "XAU GİŞE GRAM  TUTAR");
+			goldStateList.add(goldStateGramAmount);
+
+			GoldState goldStateGramAmountTry = getGoldState(totalDebitAmountTry, totalCreditAmountTry,"TRY TOPLAM MALİYET");
+			goldStateList.add(goldStateGramAmountTry);
+
+			GoldState goldStateCostUnit = getGoldState(
+					totalDebitAmountTry.divide(totalDebitAmount, 5, RoundingMode.HALF_EVEN),
+					totalCreditAmountTry.divide(totalCreditAmount, 5, RoundingMode.HALF_EVEN), "TRY BİRİM MALİYET");
+			goldStateList.add(goldStateCostUnit);
 		} catch (SQLException e) {
-
 			System.out.println(e.getMessage());
-
-		} finally {
-
-			if (preparedStatement != null) {
-				try {
-					preparedStatement.close();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-
-			if (dbConnection != null) {
-				try {
-					dbConnection.close();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+		}finally{
+			closeConnection(dbConnection, psList);
 		}
 		return goldStateList;
-
 	}
 
-	public List<GoldState> retrieveGoldStateOfBank(Timestamp timestamp, List<String> accountingType)
-			throws SQLException {
+	public List<GoldState> retrieveGoldStateOfBank(Timestamp timestamp, List<String> accountingType) throws SQLException {
 
 		Connection dbConnection = null;
-		PreparedStatement preparedStatement1 = null;
-		PreparedStatement preparedStatement2 = null;
-		PreparedStatement preparedStatement3 = null;
-
-		Date date = new Date(timestamp.getTime());
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(date);
-		cal.add(Calendar.DAY_OF_MONTH, -1);
-		Timestamp ts = new Timestamp(cal.getTimeInMillis());
-		date = new Date(ts.getTime());
-
+		List<PreparedStatement> psList=new ArrayList<PreparedStatement>();
+		PreparedStatement ps1 = null;
+		PreparedStatement ps2 = null;
+		PreparedStatement ps3 = null;
+		
 		List<GoldState> goldStateList = new ArrayList<GoldState>();
 		BigDecimal totalDebitAmountTry = BigDecimal.ZERO;
 		BigDecimal totalCreditAmountTry = BigDecimal.ZERO;
 		BigDecimal totalDebitAmount = BigDecimal.ZERO;
 		BigDecimal totalCreditAmount = BigDecimal.ZERO;
+		Date date=convertTimestampToDate(timestamp);
 
 		dbConnection = getDBConnection();
+		
 		if (dbConnection == null)
 			throw new SQLException("Can't get database connection");
 
 		try {
-
+			
 			for (int i = 0; i < accountingType.size(); i++) {
-				String tryAccType = "";
-
-				if (accountingType.get(i).equals("28500"))
-					tryAccType = "284000";
-				else if (accountingType.get(i).equals("28501"))
-					tryAccType = "284010";
-				else if (accountingType.get(i).equals("28502"))
-					tryAccType = "284020";
-				else if (accountingType.get(i).equals("28503"))
-					tryAccType = "284030";
+				String tryAccType = setTryAccountType(accountingType.get(i));
 
 				String selectOperation = "SELECT "
 						+ "SUM(GOLD_DB_AMT) AS DEBIT_AMOUNT,SUM(GOLD_CRED_AMT) AS CREDIT_AMOUNT,SUM(GOLD_DB_AMT_TRY) AS DEBIT_AMOUNT_TRY,SUM(GOLD_CRED_AMT_TRY) AS CREDIT_AMOUNT_TRY "
@@ -183,23 +139,20 @@ public class APDao {
 						+ "FROM SCACH.GOLD_DAILY " + "WHERE GLD_ACCOUNTING_CODE=" + "'" + tryAccType + "'"
 						+ " AND GLD_DT=" + "'" + date + "'";
 
-				preparedStatement1 = dbConnection.prepareStatement(selectOperation);
-				ResultSet rs1 = preparedStatement1.executeQuery();
-
-				preparedStatement2 = dbConnection.prepareStatement(selectDaily);
-				ResultSet rs2 = preparedStatement2.executeQuery();
-
-				preparedStatement3 = dbConnection.prepareStatement(selectDailyTry);
-				ResultSet rs3 = preparedStatement3.executeQuery();
+				ps1 = dbConnection.prepareStatement(selectOperation);
+				ResultSet rs1 = ps1.executeQuery();
+				ps2 = dbConnection.prepareStatement(selectDaily);
+				ResultSet rs2 = ps2.executeQuery();
+				ps3 = dbConnection.prepareStatement(selectDailyTry);
+				ResultSet rs3 = ps3.executeQuery();
+				
+				psList.add(ps1);
+				psList.add(ps2);
+				psList.add(ps3);
 
 				while (rs1.next()) {
 					while (rs2.next()) {
-						System.out.println("daily debit amount :"+ rs2.getBigDecimal("DAILY_DEBIT_AMOUNT"));
-						System.out.println("debit amount :"+ rs1.getBigDecimal("DEBIT_AMOUNT"));
-						GoldState goldState = getGoldState(
-								(rs1.getBigDecimal("DEBIT_AMOUNT")==null?BigDecimal.ZERO:rs1.getBigDecimal("DEBIT_AMOUNT")).add(rs2.getBigDecimal("DAILY_DEBIT_AMOUNT")==null ?BigDecimal.ZERO:rs2.getBigDecimal("DAILY_DEBIT_AMOUNT")),
-								(rs1.getBigDecimal("CREDIT_AMOUNT")==null?BigDecimal.ZERO:rs1.getBigDecimal("CREDIT_AMOUNT")).add(rs2.getBigDecimal("DAILY_CREDIT_AMOUNT")==null?BigDecimal.ZERO:rs2.getBigDecimal("DAILY_CREDIT_AMOUNT")),
-								accountingType.get(i));
+						GoldState goldState = getGoldState(getTotalAmount(rs1.getBigDecimal("DEBIT_AMOUNT"), rs2.getBigDecimal("DAILY_DEBIT_AMOUNT")),getTotalAmount(rs1.getBigDecimal("CREDIT_AMOUNT"), rs2.getBigDecimal("DAILY_CREDIT_AMOUNT")),accountingType.get(i));
 						goldStateList.add(goldState);
 
 						if (accountingType.get(i).equals("28503") == false) {
@@ -208,10 +161,7 @@ public class APDao {
 						}
 					}
 					while (rs3.next()) {
-						GoldState goldStateTry = getGoldState(
-								(rs1.getBigDecimal("DEBIT_AMOUNT_TRY")==null?BigDecimal.ZERO:rs1.getBigDecimal("DEBIT_AMOUNT_TRY")).add(rs3.getBigDecimal("DAILY_DEBIT_AMOUNT_TRY")==null ?BigDecimal.ZERO:rs2.getBigDecimal("DAILY_DEBIT_AMOUNT_TRY")),
-								(rs1.getBigDecimal("CREDIT_AMOUNT_TRY")==null?BigDecimal.ZERO:rs1.getBigDecimal("CREDIT_AMOUNT_TRY")).add(rs3.getBigDecimal("DAILY_CREDIT_AMOUNT_TRY")==null?BigDecimal.ZERO:rs2.getBigDecimal("DAILY_CREDIT_AMOUNT_TRY")),
-								tryAccType);
+						GoldState goldStateTry = getGoldState(getTotalAmount(rs1.getBigDecimal("DEBIT_AMOUNT_TRY"), rs3.getBigDecimal("DAILY_DEBIT_AMOUNT_TRY")),getTotalAmount(rs1.getBigDecimal("CREDIT_AMOUNT_TRY"), rs3.getBigDecimal("DAILY_CREDIT_AMOUNT_TRY")),tryAccType);
 						goldStateList.add(goldStateTry);
 
 						if (goldStateTry.getType().equals("284030") == false) {
@@ -222,53 +172,27 @@ public class APDao {
 
 				}
 			}
-
-			GoldState goldStateGramAmount = getGoldState(totalDebitAmount, totalCreditAmount, "XAU GİŞE GRAM  TUTAR");
-			goldStateList.add(goldStateGramAmount);
-
-			GoldState goldStateGramAmountTry = getGoldState(totalDebitAmountTry, totalCreditAmountTry,
-					"TRY TOPLAM MALİYET");
-			goldStateList.add(goldStateGramAmountTry);
-
-			GoldState goldStateCostUnit = getGoldState(
-					totalDebitAmountTry.divide(totalDebitAmount, 5, RoundingMode.HALF_EVEN),
-					totalCreditAmountTry.divide(totalCreditAmount, 5, RoundingMode.HALF_EVEN), "TRY BİRİM MALİYET");
-			goldStateList.add(goldStateCostUnit);
-
 			GoldState goldStateUsd = getGoldState(BigDecimal.ZERO, BigDecimal.ZERO, "USD 284030");
 			goldStateList.add(goldStateUsd);
 
 			GoldState goldStateXau = getGoldState(BigDecimal.ZERO, BigDecimal.ZERO, "XAU 019000");
 			goldStateList.add(goldStateXau);
 
+			GoldState goldStateGramAmount = getGoldState(totalDebitAmount, totalCreditAmount, "XAU GİŞE GRAM  TUTAR");
+			goldStateList.add(goldStateGramAmount);
+
+			GoldState goldStateGramAmountTry = getGoldState(totalDebitAmountTry, totalCreditAmountTry,"TRY TOPLAM MALİYET");
+			goldStateList.add(goldStateGramAmountTry);
+
+			GoldState goldStateCostUnit = getGoldState(totalDebitAmountTry.divide(totalDebitAmount, 5, RoundingMode.HALF_EVEN),totalCreditAmountTry.divide(totalCreditAmount, 5, RoundingMode.HALF_EVEN), "TRY BİRİM MALİYET");
+			goldStateList.add(goldStateCostUnit);
+
 		} catch (SQLException e) {
-
 			System.out.println(e.getMessage());
-
-		} finally {
-
-			if (preparedStatement1 != null) {
-				try {
-					preparedStatement1.close();
-					preparedStatement2.close();
-					preparedStatement3.close();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
-
-			if (dbConnection != null) {
-				try {
-					dbConnection.close();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-			}
+		}finally{
+			closeConnection(dbConnection, psList);
 		}
 		return goldStateList;
-
 	}
 
 	private Connection getDBConnection() {
@@ -276,13 +200,11 @@ public class APDao {
 		Connection dbConnection = null;
 
 		try {
-
+			
 			Class.forName(DB_DRIVER);
-
+			
 		} catch (ClassNotFoundException e) {
-
 			System.out.println("Driver Bulunamadı :" + e.getMessage());
-
 		}
 
 		try {
@@ -291,13 +213,10 @@ public class APDao {
 			return dbConnection;
 
 		} catch (SQLException e) {
-
 			System.out.println(e.getMessage());
-
 		}
 
 		return dbConnection;
-
 	}
 
 	private GoldState getGoldState(BigDecimal dbAmount, BigDecimal crAmount, String accType) {
@@ -315,5 +234,63 @@ public class APDao {
 
 		return goldState;
 	}
+	
+	private BigDecimal getTotalAmount(BigDecimal amountOperation, BigDecimal amountDaily) {
 
-}
+		BigDecimal opr = (amountOperation == null ? BigDecimal.ZERO : amountOperation);
+		BigDecimal daily = (amountDaily == null ? BigDecimal.ZERO : amountDaily);
+		BigDecimal total =opr.add(daily);
+
+		return total;
+	}
+	
+	private Date convertTimestampToDate(Timestamp ts){
+		
+		Date date = new Date(ts.getTime());
+		Calendar cal = Calendar.getInstance();
+		cal.setTime(date);
+		cal.add(Calendar.DAY_OF_MONTH, -1);
+		
+		ts = new Timestamp(cal.getTimeInMillis());
+		date = new Date(ts.getTime());
+		
+		return date;
+	}
+	
+	private String setTryAccountType(String accType){
+		String tryAccType = "";
+		
+		if (accType.equals("28500"))
+			tryAccType = "284000";
+		else if (accType.equals("28501"))
+			tryAccType = "284010";
+		else if (accType.equals("28502"))
+			tryAccType = "284020";
+		else if (accType.equals("28503"))
+			tryAccType = "284030";
+		
+		return tryAccType;
+		
+	}
+
+	private void closeConnection(Connection con,List<PreparedStatement> ps){
+		
+       for(int i=0;i<ps.size();i++){
+			if (ps.get(i) != null) {
+				try {
+					ps.get(i).close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+       }
+			if (con != null) {
+				try {
+					con.close();
+				} catch (SQLException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+	}
+

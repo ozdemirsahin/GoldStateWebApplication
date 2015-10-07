@@ -26,7 +26,6 @@ public class GoldService{
 			} else {
 			    goldStates =retrieveGoldStatesOfBranch(typs, branchCode,timestamp);
 			}
-			
         return goldStates;
 	}
 	
